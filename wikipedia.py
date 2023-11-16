@@ -14,8 +14,10 @@ marvin.settings.openai.api_key = os.getenv("OPENAI_API_KEY")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def main():
+    short_story = "A new on-site processing facility uses solar power and advanced filtration systems to refine gold. This reduces the carbon footprint of transporting ores and cuts down on energy consumption, aligning the mining industry with global sustainability goals."
     image_urls=get_last_five_images("solar power")
-    most_general_image = evaluate_images(image_urls)
+    print(image_urls)
+    most_general_image = evaluate_images(image_urls, short_story)
     print(most_general_image)
 
 @ai_model(instructions="given a section of a short story. i need to find a good image from wikipedia to represent this section. for this i need only one keyword.")
@@ -46,21 +48,30 @@ def get_last_five_images(keyword):
     # Find all <a> elements that have an <img> child
     image_links = soup.find_all('a', {'class': 'sdms-image-result'})
     # Get the last 5 image links
-    last_five_image_links = image_links[-5:]
-    # Extract the URLs of the pages where the images are displayed
-    image_page_urls = [link['href'] for link in last_five_image_links]
-    return image_page_urls
+    last_five_image_links = image_links[:5]
+    # Extract the source URLs of the images
+    image_src_urls = [link.find('img')['src'] for link in last_five_image_links]
+    return image_src_urls
 
-def evaluate_images(image_urls):
+def evaluate_images(image_urls, section):
     """
     evaluates the 5 images and returns the best one
+    """
+    prompt = f"""
+    i am creating a short story with different sections and each section also has a image. i am making a query on wikimedia commons with a keyword which represents my section. its about the following section:
+
+    ---
+    {section}
+    ---
+
+    of the series of images which one represents the section best? return only the number of the image and nothing else:
     """
     # Prepare the initial message
     messages = [{
         "role": "user",
         "content": [{
             "type": "text",
-            "text": "What are in these images? Is there any difference between them?",
+            "text": prompt,
         }]
     }]
 
@@ -82,8 +93,7 @@ def evaluate_images(image_urls):
         messages=messages,
         max_tokens=300,
     )
-
-    print(response.choices[0])
+    return response.choices[0].message.content 
 
 def get_image():
     """

@@ -191,8 +191,9 @@ last response
 
 twitter bot for it? + support our work website where people can buy a colorful printed book full of visionary futures 
 
+
 - python package so that people can super easy create their own future stories
 - super simple page (framer) where every day a new story is created 
     - on top of the website is a support work link where people can order a colorful printed book 
 - setup my account in a way that i tweet every day a link to a story
-
+- share in AGI house slack channel research hackathon 

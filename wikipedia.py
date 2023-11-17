@@ -13,14 +13,16 @@ load_dotenv()
 marvin.settings.openai.api_key = os.getenv("OPENAI_API_KEY")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def main():
-    short_story = "A new on-site processing facility uses solar power and advanced filtration systems to refine gold. This reduces the carbon footprint of transporting ores and cuts down on energy consumption, aligning the mining industry with global sustainability goals."
-    image_urls=get_last_five_images("solar power")
-    print(image_urls)
-    most_general_image = evaluate_images(image_urls, short_story)
-    print(most_general_image)
+def find_image_for_story_section(section):
+    keyword = Keyword(section)
+    image_urls = get_last_five_images(keyword.keyword)
+    if len(image_urls) == 0:
+        return "no images found"
+    image_choice = evaluate_images(image_urls, keyword.keyword)
+    image = image_urls[int(image_choice)]
+    return image
 
-@ai_model(instructions="given a section of a short story. i need to find a good image from wikipedia to represent this section. for this i need only one keyword.")
+@ai_model(instructions="given a section of a short story. i need to find a good image from wikipedia commons to represent this section. for this i need only one keyword. please provide a keyword where the chances are also high that images are available with this name.")
 class Keyword(BaseModel):
     """
     provide the best keyword
@@ -74,7 +76,6 @@ def evaluate_images(image_urls, section):
             "text": prompt,
         }]
     }]
-
     # Add each image URL to the messages
     for url in image_urls:
         messages.append({
@@ -86,7 +87,6 @@ def evaluate_images(image_urls, section):
                 }
             }]
         })
-
     # Send the API request
     response = openai.ChatCompletion.create(
         model="gpt-4-vision-preview",
@@ -95,24 +95,9 @@ def evaluate_images(image_urls, section):
     )
     return response.choices[0].message.content 
 
-def get_image():
-    """
-    given a section of a short story:
 
-    A new on-site processing facility uses solar power and advanced filtration systems to refine gold. This reduces the carbon footprint of transporting ores and cuts down on energy consumption, aligning the mining industry with global sustainability goals.
-
-    i need to find a good image from wikipedia to represent this section. for this i need a list of keywords.
-
-    1. get a list of keywords with which i could start a effective search from - 
-    2. get for from key word 
-    3. let gpt vision make a decision on what image would fit best for the section
-    """
-    keywoard = Keyword("A new on-site processing facility uses solar power and advanced filtration systems to refine gold. This reduces the carbon footprint of transporting ores and cuts down on energy consumption, aligning the mining industry with global sustainability goals.")
 
 
 if __name__ == "__main__":
-    main()
-
-
-
+    find_image_for_story_section("In the year 2040, a groundbreaking project called 'The Simulation City' was initiated. It aimed to create a fully sustainable and technologically advanced city using computer simulations and principles of physics.")
 

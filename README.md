@@ -11,11 +11,9 @@ some examples for twitter threads:
 - https://x.com/BenjaminDEKR/status/1723173630966907175?s=20
 - https://x.com/codyaims/status/1723206795316121969?s=20
 - https://x.com/granawkins/status/1723146302920577145?s=20
-
-
+- https://x.com/viennahypertext/status/1681077864626630657?s=20
 - https://promptbase.com/prompt/futuristic-business-model-intodays-world
 - https://promptbase.com/prompt/factory-of-the-future-storyboarding
-
 
 ## brainstorming
 
@@ -24,9 +22,6 @@ how could the connection to wikipedia look like? it could take existing projects
 i feel like its only a matter of lacking missing data
 
 below each section should be a mix of images, i.e. 50% image gen and 50% taken from wikipedia. need to find realistic looking images given the scenario. 
-
-
-
 
 ## prompts:
 
@@ -189,11 +184,15 @@ last response
 
 ## todos 
 
-twitter bot for it? + support our work website where people can buy a colorful printed book full of visionary futures 
-
-
+- make gen ai images smaller
+- improve prompt system so that its more similar to https://x.com/codyaims/status/1723206795316121969?s=20
+    - make year vary a bit
+- improve image selection from wikipedia 
 - python package so that people can super easy create their own future stories
+
+
 - super simple page (framer) where every day a new story is created 
     - on top of the website is a support work link where people can order a colorful printed book 
 - setup my account in a way that i tweet every day a link to a story
 - share in AGI house slack channel research hackathon 
+- share with people from tweets above

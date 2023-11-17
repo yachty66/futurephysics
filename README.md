@@ -184,8 +184,9 @@ last response
 
 ## todos 
 
-- make gen ai images smaller
+- make gen ai images smaller - 
 - improve prompt system so that its more similar to https://x.com/codyaims/status/1723206795316121969?s=20
+    - should be less a story but more a excursion
     - make year vary a bit
 - improve image selection from wikipedia 
 - python package so that people can super easy create their own future stories

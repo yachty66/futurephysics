@@ -19,6 +19,8 @@ def find_image_for_story_section(section):
     if len(image_urls) == 0:
         return "no images found"
     image_choice = evaluate_images(image_urls, keyword.keyword)
+    if image_choice == "None":
+        return "no images found"
     image = image_urls[int(image_choice)]
     return image
 
@@ -66,7 +68,7 @@ def evaluate_images(image_urls, section):
     {section}
     ---
 
-    of the series of images which one represents the section best? return only the number of the image and nothing else:
+    of the series of images which one represents the section best? return only the number of the image and and in the case there is no image which represents the section well return None:
     """
     # Prepare the initial message
     messages = [{

@@ -7,18 +7,23 @@ import os
 import random
 from dotenv import load_dotenv
 import wikipedia 
+import sys
 
 load_dotenv()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def main():
+def story():
     categories = load_categories()
     categories_str = make_categories_str(categories)
     story = generate_story(categories_str)
-    title, year, sections = parse_story(story)
+    try:
+        title, year, sections = parse_story(story)
+    except ValueError as e:
+        print(f"Error parsing following story: {categories_str}")
+        sys.exit(1)
     image_urls = image_generator(sections)
-    html = html_converter(title, year, sections, image_urls)
+    html = html_converter(title, sections, image_urls, categories_str)
 
 def parse_story(story_str):
     """
@@ -32,12 +37,13 @@ def parse_story(story_str):
     sections = [value for key, value in story_dict.items() if key not in ['title', 'year']]
     return title, year, sections
 
-
 def make_categories_str(categories):
     """
     takes dict of categories and makes it into a string for the prompt
     """
-    categories_str = ', '.join(categories.values())
+    # Filter out empty values
+    non_empty_categories = filter(None, categories.values())
+    categories_str = ', '.join(non_empty_categories)
     return categories_str
 
 def load_categories():
@@ -78,8 +84,9 @@ def generate_story(categories):
     """
     generates a story based on the keyword
     """
-    first_prompt = """
-    I want you to be my cowriter on innovative and ambitious future ideas which are still in the realm of physics so that its not unrealistic that something like this exists. Following and exampl of such and scenario:
+    random_year = random.randint(2025, 2035)
+    first_prompt = f"""\
+    I want you to be my cowriter on innovative and ambitious future ideas which are still in the realm of physics so that its not unrealistic that something like this exists. Following and example of such and scenario:
 
     ---
 
@@ -192,19 +199,19 @@ def generate_story(categories):
 
     --- 
 
-    The example was about an innovative school concept. There are no limits for which areas you can create the concept for. I will provide you with a few categories which should be involved in the concept and you should create the concept from there. please focus on the science aspects and that its in the realm of phyisics.
+    The example was about an innovative school concept. There are no limits for which areas you can create the concept for. I will provide you with a few categories which should be involved in the concept and you should create the concept from there. please focus on the science aspects and that its in the realm of phyisics. it also shouldnt be just the story about it but rather a excursion for the reader like if he would be there. The story should play in the year {random_year}, i.e. build the scenario realistically and not to far fetched - we are currently in the year 2023.
     """
 
-    second_prompt = f"""
-    Absolutely, I'd be delighted to collaborate with you on creating innovative and ambitious future concepts grounded in the realm of physics. To begin, you can provide me with a few categories or areas of focus, and I will craft a concept around them, ensuring that the ideas are scientifically plausible and innovative.
+    second_prompt = f"""\
+    Absolutely, I'd be delighted to collaborate with you on creating innovative and ambitious future concepts grounded in the realm of physics. To begin, you can provide me with a few categories or areas of focus, and I will craft a concept around them, ensuring that the ideas are scientifically plausible, innovative and that its like the view of an person who is there.
 
     For instance, if you're interested in areas like renewable energy, space exploration, advanced robotics, healthcare technology, or smart cities, just let me know. I will then develop a concept that integrates these categories, keeping in mind the principles of physics and the feasibility of such technologies in the near future.
 
     Feel free to share the categories or specific areas you're interested in, and we can start brainstorming and shaping these futuristic concepts together!
     """
 
-    third_prompt = f"""
-    the categories are: {categories}. dont focus on to many different concepts but rather narrow it down a bit and make sure to focus on physics. please go ahead and write the short story based on this categories. the story should be returned in json as following:
+    third_prompt = f"""\
+    the categories are: {categories}. dont focus on to many different concepts but rather narrow it down a bit and make sure to focus on physics. please go ahead and write the short story based on this categories. the story should be returned in JSON (and nothing else) as following:
 
     ---
     {{
@@ -236,7 +243,7 @@ def generate_first_image(first_section):
     """
     generates the first image which is also the title image
     """
-    prompt=f"""
+    prompt=f"""\
     i generated a short story with ten short sections. my goal is it now to create an appropriate image for each section. the section i am going to provide to you is also the section which is responsible for the title image (the image which serves as thumbnail for the story). please generate an image for the following section:
 
     ---
@@ -252,7 +259,7 @@ def generate_image(section):
     """
     generates the first image which is also the title image
     """
-    prompt=f"""
+    prompt=f"""\
     i generated a short story with ten short sections. my goal is it now to create an appropriate image for each section. please generate an image for the following section:
 
     ---
@@ -294,18 +301,29 @@ def image_generator(story):
             image_urls.append(image_url)
     return image_urls
 
-def html_converter(title, year, sections, image_urls):
+def html_converter(title, sections, image_urls, categories):
     """
     Converts the story into fully functional html ready to be rendered in the browser containing images and everything
     """
     with open('story.html', 'w') as f:
-        f.write(f"<h1>{title}</h1>\n")
-        f.write(f"<h2>{year}</h2>\n")
+        f.write('<html>\n')
+        f.write('<head>\n')
+        f.write('<style>\n')
+        f.write('.section, .categories { font-size: 15px; font-weight: normal; }\n')
+        f.write('</style>\n')
+        f.write('</head>\n')
+        f.write('<body>\n')
+        f.write(f"<h1><strong>{title}</strong></h1>\n")
+        f.write(f'<h3 class="categories"><em>Categories: {categories}</em></h3>\n')
         for section, image_url in zip(sections, image_urls):
-            f.write(f"<h3>{section}</h3>\n")
-            f.write(f'<img src="{image_url}" alt="Image for {section}">\n')
+            f.write(f'<div class="section">\n')
+            f.write(f"<p>{section}</p>\n")
+            f.write(f'<img src="{image_url}" alt="Image for {section}" width="256" height="256">\n')
+            f.write('</div>\n')
+        f.write('</body>\n')
+        f.write('</html>\n')
 
 if __name__ == "__main__":
-    main()
+    story()
 
     

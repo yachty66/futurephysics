@@ -240,7 +240,7 @@ def prompts(categories, random_year):
     """
 
     third_prompt = f"""\
-    the categories are: {categories}. dont focus on to many different concepts but rather narrow it down a bit. please go ahead and write the short story based on this categories. the story should be returned in JSON (and nothing else) as following:
+    the categories are: {categories}. dont focus on to many different concepts but rather narrow it down a bit. please go ahead and write the short story based on this categories. only the JSON of the story should be returned in JSON - this is really important - as following:
 
     ---
     {{
@@ -257,6 +257,8 @@ def prompts(categories, random_year):
         "tenth_section": "tenth section"
     }}
     --- 
+
+    JSON:
     """
     return first_prompt, second_prompt, third_prompt
 

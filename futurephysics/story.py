@@ -1,71 +1,103 @@
-"""
-file in which i generate the story
-"""
-import openai 
+import openai
 import json
-import os
 import random
-from dotenv import load_dotenv
-import wikipedia 
+import os
 import sys
+from google.cloud import storage
+from . import wikipedia
+import logging
 
-load_dotenv()
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-#takes either a list of 3 categories or standard it fetches three categories from the dataset
-def story(categories=None):
-    if categories is None:
-        categories=random_categories()
-    else:
-        categories = ', '.join(categories)
+def story(openai_api_key, categories=None, google_id=None, google_bucket=None):
+    """
+    Generates a story based on categories, parses it into sections, generates images for each section, and converts the story and images into HTML.
+    """
+    openai.api_key = openai_api_key
+    categories = cleaned_categories(categories)
     story = generate_story(categories)
     try:
-        title, year, sections = parse_story(story)
+        title, sections = parse_story(story)
     except ValueError as e:
-        print(f"Error parsing following story: {categories}")
+        logging.info(f"Error parsing following story: {story}")
         sys.exit(1)
     image_urls = image_generator(sections)
+    if google_id is not None and google_bucket is not None:
+        image_urls = upload_files_to_bucket(image_urls, google_id, google_bucket) 
     html = html_converter(title, sections, image_urls, categories)
+    return html
+
+def upload_files_to_bucket(urls, google_id, google_bucket):
+    """Uploads a file to Google Cloud Storage and returns its URL."""
+    uploaded_urls = []
+    client = storage.Client(project=google_id)
+    bucket = client.get_bucket(google_bucket)
+    for image in urls:
+        blob = bucket.blob(os.path.basename(image))
+        blob.upload_from_filename(image)
+        file_url = blob.public_url
+        uploaded_urls.append(file_url)
+    return uploaded_urls
+
+
+def cleaned_categories(categories):
+    """
+    Returns a string of categories, either from the provided list or by generating random categories.
+    """
+    if categories is None:
+        categories = random_categories()
+    else:
+        categories = ", ".join(categories)
+    return categories
+
 
 def random_categories():
     """
-    generates three random categories from the dataset
+    Reads the data.txt file and returns a string of three random categories.
     """
-    with open('data.txt', 'r') as f:
+    # Get the directory of this script
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    # Get the path of data.txt
+    data_path = os.path.join(dir_path, "data.txt")
+    with open(data_path, "r") as f:
         lines = f.readlines()
     categories = random.sample(lines, 3)
-    categories = [category.rstrip('\n') for category in categories]
-    categories_str = ', '.join(categories)
+    categories = [category.rstrip("\n") for category in categories]
+    categories_str = ", ".join(categories)
     return categories_str
+
 
 def parse_story(story_str):
     """
-    Parse the story string into a list of sections, title, and year
+    Parses a JSON-formatted story string into a title and a list of sections.
     """
-    # Convert the string into a dictionary
     story_dict = json.loads(story_str)
-    # Extract the title, year, and sections
-    title = story_dict.get('title')
-    year = story_dict.get('year')
-    sections = [value for key, value in story_dict.items() if key not in ['title', 'year']]
-    return title, year, sections
+    title = story_dict.get("title")
+    year = story_dict.get("year")
+    sections = [
+        value for key, value in story_dict.items() if key not in ["title", "year"]
+    ]
+    return title, sections
+
 
 def gpt(temperature, messages, model):
     """
-    helper function to call openai api
+    Sends a chat completion request to the OpenAI API and returns the content of the response.
     """
     response = openai.ChatCompletion.create(
         model=model,
         messages=messages,
         temperature=temperature,
     )
-    content = response.choices[0].message.content 
+    content = response.choices[0].message.content
     return content
+
 
 def dalle(prompt, model="dall-e-3", size="1024x1024", quality="hd", n=1):
     """
-    dalle api call helper function
+    Sends an image creation request to the OpenAI API and returns the URL of the generated image.
     """
     response = openai.Image.create(
         model=model,
@@ -77,11 +109,11 @@ def dalle(prompt, model="dall-e-3", size="1024x1024", quality="hd", n=1):
     image_url = response.data[0].url
     return image_url
 
-def generate_story(categories):
+
+def prompts(categories, random_year):
     """
-    generates a story based on the keyword
+    Returns three prompts for generating a story, based on the provided categories and a random year.
     """
-    random_year = random.randint(2025, 2035)
     first_prompt = f"""\
     I want you to be my cowriter on innovative and ambitious future ideas which are still in the realm of physics so that its not unrealistic that something like this exists. Following and example of such and scenario:
 
@@ -213,7 +245,6 @@ def generate_story(categories):
     ---
     {{
         "title": "title"
-        "year": "year"
         "first_section": "first section"
         "second_section": "second section"
         "third_section": "third section"
@@ -227,20 +258,30 @@ def generate_story(categories):
     }}
     --- 
     """
-    messages=[
+    return first_prompt, second_prompt, third_prompt
+
+
+def generate_story(categories):
+    """
+    Generates a story based on the provided categories by sending prompts to the OpenAI API.
+    """
+    random_year = random.randint(2025, 2035)
+    first_prompt, second_prompt, third_prompt = prompts(categories, random_year)
+    messages = [
         {"role": "user", "content": first_prompt},
         {"role": "assistant", "content": second_prompt},
         {"role": "user", "content": third_prompt},
     ]
-    #gpt-3.5-turbo-1106
-    story=gpt(0.5, messages, model="gpt-3.5-turbo-1106")
+    # gpt-3.5-turbo-1106
+    story = gpt(0.5, messages, model="gpt-4")
     return story
+
 
 def generate_first_image(first_section):
     """
-    generates the first image which is also the title image
+    Generates an image for the first section of the story by sending a prompt to the OpenAI API.
     """
-    prompt=f"""\
+    prompt = f"""\
     i generated a short story with ten short sections. my goal is it now to create an appropriate image for each section. the section i am going to provide to you is also the section which is responsible for the title image (the image which serves as thumbnail for the story). please generate an image for the following section:
 
     ---
@@ -252,11 +293,12 @@ def generate_first_image(first_section):
     image_url = dalle(prompt)
     return image_url
 
+
 def generate_image(section):
     """
-    generates the first image which is also the title image
+    Generates an image for a given section of the story by sending a prompt to the OpenAI API.
     """
-    prompt=f"""\
+    prompt = f"""\
     i generated a short story with ten short sections. my goal is it now to create an appropriate image for each section. please generate an image for the following section:
 
     ---
@@ -267,62 +309,54 @@ def generate_image(section):
     """
     image_url = dalle(prompt)
     return image_url
-    
+
 
 def image_generator(story):
     """
-    adds image to each section 
-
-    1. image for first section is always going to be dalle generated 
-    2. randomly pick five sections from the remaining 2-10
-    3. iterate over each section and check if its selected section if yes check if its possible to take image from wikipedia, if no make image gen
-    4. otherwise make image gen
-
-    can just generate a txt file with all kinds of possible topic names taken from wikipedia via gpt vision. this sounfs
+    Generates images for each section of the story, either by finding an image on Wikipedia or by generating an image using the OpenAI API.
     """
-    image_urls=[]
+    image_urls = []
     random_sections = random.sample(story[1:], 5)
     for line in story:
-        #if first line than call generate_first_image function
+        # if first line than call generate_first_image function
         if line == story[0]:
             image_url = generate_first_image(line)
             image_urls.append(image_url)
-        #if line is in random_sections, call wikipedia.find_image_for_story_section
+        # if line is in random_sections, call wikipedia.find_image_for_story_section
         elif line in random_sections:
-            #returns image url or None 
-            image_url = wikipedia.find_image_for_story_section(line)
+            # returns image url or None
+            image_url = wikipedia.find_image_for_story_section(line, openai.api_key)
             if image_url == "no images found":
                 image_url = generate_image(line)
             image_urls.append(image_url)
-        #otherwise call generate_image function
+        # otherwise call generate_image function
         else:
             image_url = generate_image(line)
             image_urls.append(image_url)
     return image_urls
 
+
 def html_converter(title, sections, image_urls, categories):
     """
-    Converts the story into fully functional html ready to be rendered in the browser containing images and everything
+    Converts the title, sections, images, and categories of a story into an HTML string.
     """
-    with open('story.html', 'w') as f:
-        f.write('<html>\n')
-        f.write('<head>\n')
-        f.write('<style>\n')
-        f.write('.section, .categories { font-size: 15px; font-weight: normal; }\n')
-        f.write('</style>\n')
-        f.write('</head>\n')
-        f.write('<body>\n')
-        f.write(f"<h1><strong>{title}</strong></h1>\n")
-        f.write(f'<h3 class="categories"><em>Categories: {categories}</em></h3>\n')
-        for section, image_url in zip(sections, image_urls):
-            f.write(f'<div class="section">\n')
-            f.write(f"<p>{section}</p>\n")
-            f.write(f'<img src="{image_url}" alt="Image for {section}" width="256" height="256">\n')
-            f.write('</div>\n')
-        f.write('</body>\n')
-        f.write('</html>\n')
-
-if __name__ == "__main__":
-    story()
-
-    
+    html = []
+    html.append("<html>\n")
+    html.append("<head>\n")
+    html.append("<style>\n")
+    html.append(".section, .categories { font-size: 15px; font-weight: normal; }\n")
+    html.append("</style>\n")
+    html.append("</head>\n")
+    html.append("<body>\n")
+    html.append(f"<h1><strong>{title}</strong></h1>\n")
+    html.append(f'<h3 class="categories"><em>Categories: {categories}</em></h3>\n')
+    for section, image_url in zip(sections, image_urls):
+        html.append(f'<div class="section">\n')
+        html.append(f"<p>{section}</p>\n")
+        html.append(
+            f'<img src="{image_url}" alt="Image for {section}" width="256" height="256">\n'
+        )
+        html.append("</div>\n")
+    html.append("</body>\n")
+    html.append("</html>\n")
+    return "".join(html)

@@ -1,0 +1,5 @@
+openai==0.28
+marvin
+requests
+beautifulsoup4
+google-cloud-storage

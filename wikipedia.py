@@ -1,6 +1,7 @@
 import marvin
 from marvin import ai_model
 from pydantic import BaseModel, Field
+import sys
 from typing import List
 import requests
 from bs4 import BeautifulSoup
@@ -13,8 +14,22 @@ load_dotenv()
 marvin.settings.openai.api_key = os.getenv("OPENAI_API_KEY")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+"""
+i somehow need to find a way how to get cool images from wikipedia for my short story. for
+
+if i only use categories from wikipedia than there is also higher prob that i find appropp
+
+
+
+"""
+
+
 def find_image_for_story_section(section):
-    keyword = Keyword(section)
+    try:
+        keyword = Keyword(section)
+    except:
+        print("Error: Unable to find keyword for section: ", section)
+        sys.exit(1)
     image_urls = get_last_five_images(keyword.keyword)
     if len(image_urls) == 0:
         return "no images found"
@@ -68,7 +83,7 @@ def evaluate_images(image_urls, section):
     {section}
     ---
 
-    of the series of images which one represents the section best? return only the number of the image and and in the case there is no image which represents the section well return None:
+    of the series of images which one represents the section best? return only the number of the image and and in the case there is no image or only images which doesnt make any sense and which do not represent the section well return None:
     """
     # Prepare the initial message
     messages = [{
@@ -89,12 +104,16 @@ def evaluate_images(image_urls, section):
                 }
             }]
         })
-    # Send the API request
-    response = openai.ChatCompletion.create(
-        model="gpt-4-vision-preview",
-        messages=messages,
-        max_tokens=300,
-    )
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4-vision-preview",
+            messages=messages,
+            max_tokens=300,
+        )
+    except:
+        print("Original exception:", sys.exc_info()[0])
+        print("Error: Unable to evaluate images: ", image_urls)
+        sys.exit(1)
     return response.choices[0].message.content 
 
 

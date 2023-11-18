@@ -13,17 +13,31 @@ load_dotenv()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def story():
-    categories = load_categories()
-    categories_str = make_categories_str(categories)
-    story = generate_story(categories_str)
+#takes either a list of 3 categories or standard it fetches three categories from the dataset
+def story(categories=None):
+    if categories is None:
+        categories=random_categories()
+    else:
+        categories = ', '.join(categories)
+    story = generate_story(categories)
     try:
         title, year, sections = parse_story(story)
     except ValueError as e:
-        print(f"Error parsing following story: {categories_str}")
+        print(f"Error parsing following story: {categories}")
         sys.exit(1)
     image_urls = image_generator(sections)
-    html = html_converter(title, sections, image_urls, categories_str)
+    html = html_converter(title, sections, image_urls, categories)
+
+def random_categories():
+    """
+    generates three random categories from the dataset
+    """
+    with open('data.txt', 'r') as f:
+        lines = f.readlines()
+    categories = random.sample(lines, 3)
+    categories = [category.rstrip('\n') for category in categories]
+    categories_str = ', '.join(categories)
+    return categories_str
 
 def parse_story(story_str):
     """
@@ -36,23 +50,6 @@ def parse_story(story_str):
     year = story_dict.get('year')
     sections = [value for key, value in story_dict.items() if key not in ['title', 'year']]
     return title, year, sections
-
-def make_categories_str(categories):
-    """
-    takes dict of categories and makes it into a string for the prompt
-    """
-    # Filter out empty values
-    non_empty_categories = filter(None, categories.values())
-    categories_str = ', '.join(non_empty_categories)
-    return categories_str
-
-def load_categories():
-    """
-    Load the categories from settings.json
-    """
-    with open('settings.json', 'r') as f:
-        data = json.load(f)
-    return data
 
 def gpt(temperature, messages, model):
     """
@@ -199,19 +196,19 @@ def generate_story(categories):
 
     --- 
 
-    The example was about an innovative school concept. There are no limits for which areas you can create the concept for. I will provide you with a few categories which should be involved in the concept and you should create the concept from there. please focus on the science aspects and that its in the realm of phyisics. it also shouldnt be just the story about it but rather a excursion for the reader like if he would be there. The story should play in the year {random_year}, i.e. build the scenario realistically and not to far fetched - we are currently in the year 2023.
+    The example was about an innovative school concept. There are no limits for which areas you can create the concept for. I will provide you with a few categories which should be involved in the concept and you should create the concept from there. please focus on the science aspects and that its realistic and not to much science fiction. it also shouldnt be just the story about it but rather a excursion for the reader like if he would be there. The story should play in the year {random_year}, i.e. build the scenario realistically and not to far fetched - we are currently in the year 2023.
     """
 
     second_prompt = f"""\
-    Absolutely, I'd be delighted to collaborate with you on creating innovative and ambitious future concepts grounded in the realm of physics. To begin, you can provide me with a few categories or areas of focus, and I will craft a concept around them, ensuring that the ideas are scientifically plausible, innovative and that its like the view of an person who is there.
+    Absolutely, I'd be delighted to collaborate with you on creating innovative concepts grounded in the realm of physics and the real world. To begin, you can provide me with a few categories or areas of focus, and I will craft a concept around them, ensuring that the ideas are scientifically plausible, innovative and that its like the view of an person who is there.
 
     For instance, if you're interested in areas like renewable energy, space exploration, advanced robotics, healthcare technology, or smart cities, just let me know. I will then develop a concept that integrates these categories, keeping in mind the principles of physics and the feasibility of such technologies in the near future.
 
-    Feel free to share the categories or specific areas you're interested in, and we can start brainstorming and shaping these futuristic concepts together!
+    Feel free to share the categories or specific areas you're interested in, and we can start brainstorming and shaping these futuristic concepts together! Evertything will be realistic.
     """
 
     third_prompt = f"""\
-    the categories are: {categories}. dont focus on to many different concepts but rather narrow it down a bit and make sure to focus on physics. please go ahead and write the short story based on this categories. the story should be returned in JSON (and nothing else) as following:
+    the categories are: {categories}. dont focus on to many different concepts but rather narrow it down a bit. please go ahead and write the short story based on this categories. the story should be returned in JSON (and nothing else) as following:
 
     ---
     {{
@@ -250,7 +247,7 @@ def generate_first_image(first_section):
     {first_section}
     ---
 
-    please keep in mind that the image you generate shouldnt be to far fetched into the future and realistic in the realm of physics.
+    please keep in mind that the image you generate shouldnt be to far fetched into the future and realistic in the realm of physics. IT IS IMPORTANT THAT THE IMAGE IS REALISTIC!!!
     """
     image_url = dalle(prompt)
     return image_url
@@ -266,7 +263,7 @@ def generate_image(section):
     {section}
     ---
 
-    please keep in mind that the image you generate shouldnt be to far fetched into the future and realistic in the realm of physics.
+    please keep in mind that the image you generate shouldnt be to far fetched into the future and realistic in the realm of physics. IT IS IMPORTANT THAT THE IMAGE IS REALISTIC!!!
     """
     image_url = dalle(prompt)
     return image_url
@@ -280,6 +277,8 @@ def image_generator(story):
     2. randomly pick five sections from the remaining 2-10
     3. iterate over each section and check if its selected section if yes check if its possible to take image from wikipedia, if no make image gen
     4. otherwise make image gen
+
+    can just generate a txt file with all kinds of possible topic names taken from wikipedia via gpt vision. this sounfs
     """
     image_urls=[]
     random_sections = random.sample(story[1:], 5)

@@ -5,7 +5,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='futurephysics',
-    version='0.2',
+    version='0.8',
     packages=find_packages(),
     install_requires=required,
     description='A package for generating stories about future concepts that are physically implementable.',

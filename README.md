@@ -62,6 +62,10 @@ openai_api_key = 'your-openai-api-key'
 html = story(openai_api_key, google_id="your-google-id", google_bucket="your-google-id")
 ```
 
+## Examples 
+
+All stories which can be find on [futurephysics.org](https://www.futurephysics.org/) were created by the library.
+
 ## Contributing
 
 If you run into any issues, the most helpful thing you can do is open an issue on [GitHub](https://github.com/yachty66/futurephysics). Thank you so much!

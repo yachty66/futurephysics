@@ -21,7 +21,6 @@ def find_image_for_story_section(section, openai_api_key):
         keyword = Keyword(section)
     except:
         logging.info("Error: Unable to find keyword for section: ", section)
-        sys.exit(1)
     image_urls = get_last_five_images(keyword.keyword)
     if len(image_urls) == 0:
         return "no images found"
@@ -119,5 +118,4 @@ def evaluate_images(image_urls, section):
     except:
         logging.info("Original exception:", sys.exc_info()[0])
         logging.info("Error: Unable to evaluate images: ", image_urls)
-        sys.exit(1)
     return response.choices[0].message.content

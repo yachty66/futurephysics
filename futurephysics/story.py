@@ -2,7 +2,10 @@ import openai
 import json
 import random
 import os
+import uuid 
 import sys
+import requests
+from tempfile import TemporaryDirectory
 from google.cloud import storage
 from . import wikipedia
 import logging
@@ -22,24 +25,32 @@ def story(openai_api_key, categories=None, google_id=None, google_bucket=None):
         title, sections = parse_story(story)
     except ValueError as e:
         logging.info(f"Error parsing following story: {story}")
-        sys.exit(1)
     image_urls = image_generator(sections)
     if google_id is not None and google_bucket is not None:
         image_urls = upload_files_to_bucket(image_urls, google_id, google_bucket) 
     html = html_converter(title, sections, image_urls, categories)
     return html
 
-def upload_files_to_bucket(urls, google_id, google_bucket):
-    """Uploads a file to Google Cloud Storage and returns its URL."""
-    uploaded_urls = []
+def upload_files_to_bucket(image_urls, google_id, google_bucket):
+    """Downloads images from URLs, saves them in a temporary directory, and uploads them to Google Cloud Storage."""
     client = storage.Client(project=google_id)
     bucket = client.get_bucket(google_bucket)
-    for image in urls:
-        blob = bucket.blob(os.path.basename(image))
-        blob.upload_from_filename(image)
-        file_url = blob.public_url
-        uploaded_urls.append(file_url)
-    return uploaded_urls
+    uploaded_image_urls = []
+    headers = {'User-Agent': 'CoolBot/0.0 (https://example.org/coolbot/; coolbot@example.org)'}
+    with TemporaryDirectory() as temp_dir:
+        for image_url in image_urls:
+            response = requests.get(image_url, headers=headers)
+            response.raise_for_status()
+            image_extension = os.path.splitext(image_url)[1]
+            unique_image_name = str(uuid.uuid4()) + image_extension
+            image_path = os.path.join(temp_dir, unique_image_name)
+            with open(image_path, 'wb') as f:
+                f.write(response.content)
+            blob = bucket.blob(unique_image_name)
+            blob.upload_from_filename(image_path)
+            uploaded_image_url = blob.public_url
+            uploaded_image_urls.append(uploaded_image_url)
+    return uploaded_image_urls
 
 
 def cleaned_categories(categories):
